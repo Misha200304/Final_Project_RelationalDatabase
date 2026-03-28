@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Player Details — Tennis Analytics</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,600;0,9..40,700;1,9..40,300&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:        #eef7f0;
+      --panel:     #ffffff;
+      --panel2:    #f4faf5;
+      --header-bg: #1e5c30;
+      --header2:   #174d28;
+      --accent:    #2dab55;
+      --accent2:   #22c45e;
+      --accent-lt: #d4f5df;
+      --text:      #0f2e19;
+      --text2:     #2d5a3d;
+      --muted:     #6a967a;
+      --border:    #cde8d5;
+      --win-bg:    #d6f5de;
+      --win-txt:   #176b33;
+      --loss-bg:   #ffe5e5;
+      --loss-txt:  #c0202a;
+    }
+
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Background texture ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 70% 50% at 5% 0%,  rgba(45,171,85,0.13) 0%, transparent 55%),
+        radial-gradient(ellipse 50% 70% at 95% 100%, rgba(45,171,85,0.08) 0%, transparent 55%),
+        repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 59px,
+          rgba(45,171,85,0.06) 60px
+        ),
+        repeating-linear-gradient(
+          90deg,
+          transparent,
+          transparent 59px,
+          rgba(45,171,85,0.06) 60px
+        );
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Court line accent (top) ── */
+    body::after {
+      content: '';
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, transparent, var(--accent2), var(--accent), transparent);
+      z-index: 100;
+    }
+
+    .page {
+      position: relative;
+      z-index: 1;
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 0 24px 80px;
+    }
+
+    /* ── NAV ── */
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 24px 0 20px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 0;
+    }
+
+    .nav-logo {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 22px;
+      letter-spacing: 3px;
+      color: var(--accent);
+    }
+
+    .nav-logo span { color: var(--text); }
+
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      color: var(--text2);
+      padding: 9px 18px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      transition: all 0.22s ease;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+
+    .back-btn svg { transition: transform 0.22s ease; }
+
+    .back-btn:hover {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(45,171,85,0.3);
+    }
+
+    .back-btn:hover svg { transform: translateX(-3px); }
+
+    /* ── HERO ── */
+    .hero {
+      padding: 56px 0 44px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: end;
+      gap: 32px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .season-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--accent-lt);
+      border: 1px solid rgba(45,171,85,0.35);
+      color: var(--accent);
+      padding: 5px 14px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    .season-badge::before {
+      content: '';
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.5; transform: scale(0.8); }
+    }
+
+    .hero h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(52px, 8vw, 96px);
+      line-height: 0.9;
+      letter-spacing: 2px;
+      color: var(--text);
+    }
+
+    .hero h1 .name-accent {
+      color: var(--accent);
+      display: block;
+    }
+
+    .hero-right {
+      text-align: right;
+      padding-bottom: 10px;
+    }
+
+    .hero-rank {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 80px;
+      line-height: 1;
+      color: rgba(45,171,85,0.12);
+      letter-spacing: -2px;
+      position: relative;
+    }
+
+    .hero-rank span {
+      position: absolute;
+      bottom: 0; right: 0;
+      font-size: 14px;
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 600;
+      letter-spacing: 1px;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+
+    /* ── BIO STATS ── */
+    .bio-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1px;
+      background: var(--border);
+      margin: 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .bio-card {
+      background: var(--panel);
+      padding: 28px 24px;
+      position: relative;
+      overflow: hidden;
+      transition: background 0.2s ease;
+    }
+
+    .bio-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2), transparent);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .bio-card:hover { background: var(--panel2); }
+    .bio-card:hover::before { opacity: 1; }
+
+    .bio-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    .bio-value {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 38px;
+      letter-spacing: 1px;
+      color: var(--text);
+      line-height: 1;
+    }
+
+    .bio-value.accent { color: var(--accent); }
+
+    /* ── SECTION HEADER ── */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 40px 0 20px;
+    }
+
+    .section-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 28px;
+      letter-spacing: 3px;
+      color: var(--text);
+    }
+
+    .section-title span { color: var(--accent); }
+
+    .match-count-badge {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 5px 14px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    /* ── TABLE ── */
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      box-shadow: 0 2px 16px rgba(0,0,0,0.06);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--panel);
+    }
+
+    thead tr {
+      background: var(--header-bg);
+      border-bottom: 2px solid var(--header2);
+    }
+
+    th {
+      padding: 14px 14px;
+      text-align: left;
+      font-size: 10px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.75);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 15px 14px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+      color: var(--text);
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+
+    tbody tr {
+      transition: background 0.18s ease;
+    }
+
+    tbody tr:last-child td { border-bottom: none; }
+
+    tbody tr:hover { background: var(--panel2); }
+
+    /* Surface pills */
+    .surface-pill {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .surface-hard  { background: #dbeafe; color: #1d4ed8; }
+    .surface-clay  { background: #ffedd5; color: #c2410c; }
+    .surface-grass { background: #dcfce7; color: #166534; }
+    .surface-carpet{ background: #f3e8ff; color: #7e22ce; }
+
+    /* Result badges */
+    .badge-win {
+      background: var(--win-bg);
+      color: var(--win-txt);
+      border: 1px solid rgba(22,163,74,0.25);
+      padding: 4px 11px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+
+    .badge-loss {
+      background: var(--loss-bg);
+      color: var(--loss-txt);
+      border: 1px solid rgba(220,38,38,0.2);
+      padding: 4px 11px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+
+    /* Stat bars */
+    .stat-bar-wrap { display: flex; align-items: center; gap: 8px; min-width: 90px; }
+    .stat-bar-track {
+      flex: 1;
+      height: 5px;
+      background: var(--border);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .stat-bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--accent2), var(--accent));
+      transition: width 0.8s cubic-bezier(.4,0,.2,1);
+    }
+    .stat-val {
+      font-size: 12px;
+      color: var(--muted);
+      min-width: 36px;
+      text-align: right;
+    }
+
+    /* Dim text */
+    .dim { color: #c5d9cc; font-style: italic; }
+    .opp-rank { color: var(--muted); font-size: 12px; }
+
+    /* Loading */
+    .loading-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 100px 20px;
+      gap: 20px;
+    }
+
+    .loader {
+      width: 44px; height: 44px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-state p {
+      color: var(--muted);
+      font-size: 14px;
+      letter-spacing: 1px;
+    }
+
+    /* Error */
+    .error-state {
+      background: #fff5f5;
+      border: 1px solid #fca5a5;
+      color: #b91c1c;
+      padding: 24px;
+      border-radius: 10px;
+      margin: 40px 0;
+      font-size: 14px;
+    }
+
+    /* No matches */
+    .empty-state {
+      text-align: center;
+      padding: 80px 20px;
+      color: var(--muted);
+    }
+
+    .empty-state .big { font-family: 'Bebas Neue', sans-serif; font-size: 48px; margin-bottom: 8px; color: var(--text2); }
+
+    /* Animations */
+    .fade-in {
+      animation: fadeUp 0.5s ease both;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .hero        { animation: fadeUp 0.4s ease both; }
+    .bio-grid    { animation: fadeUp 0.5s 0.1s ease both; }
+    .section-header, .table-wrap { animation: fadeUp 0.5s 0.2s ease both; }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      .bio-grid { grid-template-columns: repeat(2, 1fr); }
+      .hero { grid-template-columns: 1fr; }
+      .hero-right { text-align: left; }
+    }
+
+    @media (max-width: 600px) {
+      .bio-grid { grid-template-columns: repeat(2, 1fr); }
+      .hero h1  { font-size: 52px; }
+      th, td    { padding: 12px 10px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+
+    <!-- NAV -->
+    <nav>
+      <div class="nav-logo">TENNIS<span>ANALYTICS</span></div>
+      <button class="back-btn" onclick="goBack()">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M9 2L4 7L9 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        All Players
+      </button>
+    </nav>
+
+    <!-- HERO -->
+    <div class="hero">
+      <div>
+        <div class="season-badge" id="seasonBadge">Season —</div>
+        <h1 id="playerName">
+          Loading<span class="name-accent">…</span>
+        </h1>
+      </div>
+      <div class="hero-right">
+        <div class="hero-rank" id="rankDisplay">
+          —<span>World Rank</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- BIO -->
+    <div class="bio-grid" id="bioGrid">
+      <div class="bio-card">
+        <div class="bio-label">Ranking</div>
+        <div class="bio-value accent" id="statRank">—</div>
+      </div>
+      <div class="bio-card">
+        <div class="bio-label">Age</div>
+        <div class="bio-value" id="statAge">—</div>
+      </div>
+      <div class="bio-card">
+        <div class="bio-label">Nationality</div>
+        <div class="bio-value" id="statNat">—</div>
+      </div>
+      <div class="bio-card">
+        <div class="bio-label">Matches Played</div>
+        <div class="bio-value" id="statMatches">—</div>
+      </div>
+    </div>
+
+    <!-- MATCHES -->
+    <div class="section-header">
+      <div class="section-title">Match <span>Log</span></div>
+      <div class="match-count-badge" id="matchCountBadge">Loading…</div>
+    </div>
+
+    <div id="tableArea">
+      <div class="loading-state">
+        <div class="loader"></div>
+        <p>Fetching match data…</p>
+      </div>
+    </div>
+
+  </div><!-- /page -->
+
+  <script>
+    function goBack() { window.location.href = 'index.html'; }
+
+    function getQueryParams() {
+      const p = new URLSearchParams(window.location.search);
+      return { name: p.get('name') || '', year: p.get('year') || '' };
+    }
+
+    function fmtPct(v) {
+      if (v === null || v === undefined) return null;
+      return (v * 100).toFixed(1) + '%';
+    }
+
+    function fmtVal(v) { return (v !== null && v !== undefined) ? v : null; }
+
+    function surfaceClass(s) {
+      if (!s) return '';
+      const sl = s.toLowerCase();
+      if (sl.includes('hard'))   return 'surface-hard';
+      if (sl.includes('clay'))   return 'surface-clay';
+      if (sl.includes('grass'))  return 'surface-grass';
+      if (sl.includes('carpet')) return 'surface-carpet';
+      return 'surface-hard';
+    }
+
+    function pctBar(pct) {
+      // pct is like "63.4%" or null
+      if (!pct) return `<span class="dim">—</span>`;
+      const num = parseFloat(pct);
+      return `
+        <div class="stat-bar-wrap">
+          <div class="stat-bar-track">
+            <div class="stat-bar-fill" style="width:${num}%"></div>
+          </div>
+          <span class="stat-val">${pct}</span>
+        </div>`;
+    }
+
+    function renderTable(matches) {
+      if (!matches.length) {
+        return `<div class="empty-state">
+          <div class="big">NO MATCHES</div>
+          <p>No match records found for this season.</p>
+        </div>`;
+      }
+
+      const rows = matches.map(m => {
+        const result   = m.result === 'Win';
+        const surf     = fmtVal(m.surface);
+        const score    = fmtVal(m.score);
+        const mins     = fmtVal(m.minutes);
+        const aces     = fmtVal(m.aces);
+        const dfs      = fmtVal(m.double_faults);
+        const f1pct    = fmtPct(m.first_serve_pct);
+        const f1w      = fmtPct(m.first_serve_won_pct);
+        const f2w      = fmtPct(m.second_serve_won_pct);
+        const bps      = fmtPct(m.bp_save_pct);
+
+        return `<tr>
+          <td><strong>${fmtVal(m.tourney_name) ?? '<span class="dim">—</span>'}</strong></td>
+          <td>${surf ? `<span class="surface-pill ${surfaceClass(surf)}">${surf}</span>` : '<span class="dim">—</span>'}</td>
+          <td>${fmtVal(m.round) ?? '<span class="dim">—</span>'}</td>
+          <td>${fmtVal(m.opponent_name) ?? '<span class="dim">—</span>'}</td>
+          <td class="opp-rank">${m.opponent_rank ? `#${m.opponent_rank}` : '<span class="dim">—</span>'}</td>
+          <td><span class="${result ? 'badge-win' : 'badge-loss'}">${m.result}</span></td>
+          <td style="font-family:monospace;font-size:12px;">${score ?? '<span class="dim">—</span>'}</td>
+          <td>${mins ?? '<span class="dim">—</span>'}</td>
+          <td>${aces ?? '<span class="dim">—</span>'}</td>
+          <td>${dfs  ?? '<span class="dim">—</span>'}</td>
+          <td>${pctBar(f1pct)}</td>
+          <td>${pctBar(f1w)}</td>
+          <td>${pctBar(f2w)}</td>
+          <td>${pctBar(bps)}</td>
+        </tr>`;
+      }).join('');
+
+      return `
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Tournament</th>
+                <th>Surface</th>
+                <th>Round</th>
+                <th>Opponent</th>
+                <th>Opp Rank</th>
+                <th>Result</th>
+                <th>Score</th>
+                <th>Min</th>
+                <th>Aces</th>
+                <th>DFs</th>
+                <th>1st Srv %</th>
+                <th>1st Won</th>
+                <th>2nd Won</th>
+                <th>BP Save</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+    }
+
+    async function loadPlayerData() {
+      const { name, year } = getQueryParams();
+
+      if (!name || !year) {
+        document.getElementById('tableArea').innerHTML =
+          '<div class="error-state">Missing player name or year. Please go back and select a player.</div>';
+        return;
+      }
+
+      // Set initial text
+      document.getElementById('seasonBadge').textContent = `Season ${year}`;
+      document.getElementById('playerName').innerHTML =
+        name.split(' ').map((w, i) =>
+          i === name.split(' ').length - 1
+            ? `<span class="name-accent">${w}</span>`
+            : w + ' '
+        ).join('');
+
+      try {
+        const res = await fetch(`/player/${encodeURIComponent(name)}?year=${year}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        if (data.error) {
+          document.getElementById('tableArea').innerHTML = `<div class="error-state">${data.error}</div>`;
+          return;
+        }
+
+        // Populate bio
+        const rank  = data.rank !== null ? `#${data.rank}` : 'N/A';
+        const age   = data.age  !== null ? data.age.toFixed(1) : 'N/A';
+        const nat   = data.ioc || 'N/A';
+        const total = data.matches.length;
+
+        document.getElementById('rankDisplay').innerHTML = `${rank}<span>World Rank</span>`;
+        document.getElementById('statRank').textContent    = rank;
+        document.getElementById('statAge').textContent     = age;
+        document.getElementById('statNat').textContent     = nat;
+        document.getElementById('statMatches').textContent = total;
+        document.getElementById('matchCountBadge').textContent = `${total} match${total !== 1 ? 'es' : ''}`;
+
+        document.getElementById('tableArea').innerHTML = renderTable(data.matches);
+        document.getElementById('tableArea').classList.add('fade-in');
+
+      } catch (err) {
+        console.error(err);
+        document.getElementById('tableArea').innerHTML =
+          '<div class="error-state">Failed to load player data. Please try again.</div>';
+      }
+    }
+
+    loadPlayerData();
+  </script>
+</body>
+</html>

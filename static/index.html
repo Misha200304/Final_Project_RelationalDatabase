@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tennis Analytics — Rankings</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,600;0,9..40,700;1,9..40,300&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:         #eef7f0;
+      --panel:      #ffffff;
+      --panel2:     #f4faf5;
+      --header-bg:  #1e5c30;
+      --header2:    #174d28;
+      --accent:     #2dab55;
+      --accent2:    #22c45e;
+      --accent-lt:  #d4f5df;
+      --text:       #0f2e19;
+      --text2:      #2d5a3d;
+      --muted:      #6a967a;
+      --border:     #cde8d5;
+      --win-bg:     #d6f5de;
+      --win-txt:    #176b33;
+      --loss-bg:    #ffe5e5;
+      --loss-txt:   #c0202a;
+    }
+
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Grid background ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 70% 50% at 5% 0%,   rgba(45,171,85,0.13) 0%, transparent 55%),
+        radial-gradient(ellipse 50% 70% at 95% 100%, rgba(45,171,85,0.08) 0%, transparent 55%),
+        repeating-linear-gradient(0deg,   transparent, transparent 59px, rgba(45,171,85,0.06) 60px),
+        repeating-linear-gradient(90deg,  transparent, transparent 59px, rgba(45,171,85,0.06) 60px);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Top accent bar ── */
+    body::after {
+      content: '';
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, transparent, var(--accent2), var(--accent), transparent);
+      z-index: 100;
+    }
+
+    .page {
+      position: relative;
+      z-index: 1;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px 100px;
+    }
+
+    /* ════════════════════════════
+       NAV
+    ════════════════════════════ */
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 40px;
+      padding: 28px 0 24px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    nav::after {
+      content: '';
+      flex: 1;
+    }
+
+    .nav-logo {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 22px;
+      letter-spacing: 3px;
+      color: var(--accent);
+    }
+    .nav-logo span { color: var(--text); }
+
+    .nav-tag {
+      background: var(--accent-lt);
+      border: 1px solid rgba(45,171,85,0.3);
+      color: var(--accent);
+      padding: 5px 14px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    /* ════════════════════════════
+       HERO
+    ════════════════════════════ */
+    .hero {
+      padding: 72px 0 60px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      align-items: center;
+      gap: 60px;
+      border-bottom: 1px solid var(--border);
+      animation: fadeUp 0.5s ease both;
+    }
+
+    .hero-left {}
+
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+
+    .hero-eyebrow::before {
+      content: '';
+      display: block;
+      width: 28px; height: 2px;
+      background: var(--accent);
+      border-radius: 2px;
+    }
+
+    .hero h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(56px, 8vw, 108px);
+      line-height: 0.88;
+      letter-spacing: 2px;
+      color: var(--text);
+      margin-bottom: 28px;
+    }
+
+    .hero h1 em {
+      font-style: normal;
+      color: var(--accent);
+    }
+
+    .hero-sub {
+      font-size: 16px;
+      line-height: 1.65;
+      color: var(--muted);
+      max-width: 380px;
+      margin-bottom: 36px;
+    }
+
+    /* Season selector — hero style */
+    .hero-selector {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .selector-label {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--text2);
+    }
+
+    .season-select {
+      appearance: none;
+      -webkit-appearance: none;
+      background: var(--panel) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' stroke='%232dab55' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 14px center;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 40px 12px 16px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      cursor: pointer;
+      min-width: 160px;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .season-select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 4px rgba(45,171,85,0.15);
+    }
+
+    .load-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 10px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 0.3px;
+      transition: all 0.22s ease;
+      box-shadow: 0 4px 16px rgba(45,171,85,0.3);
+    }
+
+    .load-btn:hover {
+      background: #259949;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(45,171,85,0.4);
+    }
+
+    /* ── Hero right: decorative stats panel ── */
+    .hero-right {
+      position: relative;
+    }
+
+    .stats-showcase {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 32px;
+      box-shadow: 0 20px 60px rgba(15,46,25,0.1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stats-showcase::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+    }
+
+    .showcase-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 13px;
+      letter-spacing: 3px;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 24px;
+    }
+
+    .podium-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .podium-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 16px;
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      transition: all 0.2s ease;
+      cursor: default;
+    }
+
+    .podium-item:hover {
+      border-color: rgba(45,171,85,0.4);
+      box-shadow: 0 4px 16px rgba(45,171,85,0.1);
+      transform: translateX(4px);
+    }
+
+    .podium-num {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 13px;
+      letter-spacing: 1px;
+      color: var(--muted);
+      min-width: 24px;
+    }
+
+    .podium-medal {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-size: 13px;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+
+    .medal-1 { background: linear-gradient(135deg, #ffd700, #ffb300); color: #7a4f00; }
+    .medal-2 { background: linear-gradient(135deg, #e0e0e0, #bdbdbd); color: #424242; }
+    .medal-3 { background: linear-gradient(135deg, #cd7f32, #a0522d); color: #fff; }
+    .medal-n { background: var(--accent-lt); color: var(--accent); }
+
+    .podium-name {
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--text);
+      flex: 1;
+    }
+
+    .podium-rank {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+    }
+
+    .showcase-footer {
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--muted);
+      text-align: center;
+      font-style: italic;
+    }
+
+    /* floating ball decoration */
+    .deco-ball {
+      position: absolute;
+      width: 120px; height: 120px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #c8f5a0, #7dd83a 60%, #4aab18);
+      box-shadow: inset -8px -8px 20px rgba(0,0,0,0.15), 0 20px 40px rgba(45,171,85,0.25);
+      top: -30px; right: -30px;
+      opacity: 0.35;
+      pointer-events: none;
+    }
+
+    .deco-ball::after {
+      content: '';
+      position: absolute;
+      inset: 12px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.4);
+    }
+
+    /* ════════════════════════════
+       STATS BAR (below hero)
+    ════════════════════════════ */
+    .stats-bar {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border-bottom: 1px solid var(--border);
+      animation: fadeUp 0.5s 0.1s ease both;
+    }
+
+    .stat-item {
+      background: var(--panel);
+      padding: 28px 32px;
+      text-align: center;
+      transition: background 0.2s;
+    }
+
+    .stat-item:hover { background: var(--panel2); }
+
+    .stat-num {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 44px;
+      letter-spacing: 1px;
+      color: var(--accent);
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+
+    .stat-lbl {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    /* ════════════════════════════
+       RANKINGS SECTION
+    ════════════════════════════ */
+    .rankings-section {
+      padding-top: 56px;
+      animation: fadeUp 0.5s 0.2s ease both;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .section-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 36px;
+      letter-spacing: 3px;
+      color: var(--text);
+    }
+
+    .section-title span { color: var(--accent); }
+
+    .section-meta {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    /* State boxes */
+    .state-box {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 48px 32px;
+      text-align: center;
+      color: var(--muted);
+    }
+
+    .state-icon {
+      font-size: 40px;
+      margin-bottom: 12px;
+      display: block;
+    }
+
+    .state-box p { font-size: 15px; }
+
+    .state-box.error-box {
+      background: #fff8f8;
+      border-color: #fca5a5;
+      color: #b91c1c;
+    }
+
+    /* Loader */
+    .loader-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 80px 20px;
+      gap: 18px;
+    }
+
+    .spinner {
+      width: 44px; height: 44px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.85s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loader-wrap p { color: var(--muted); font-size: 14px; letter-spacing: 1px; }
+
+    /* ── Player list ── */
+    .rank-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .rank-item {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      transition: all 0.22s ease;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    }
+
+    .rank-item:hover {
+      border-color: rgba(45,171,85,0.45);
+      box-shadow: 0 6px 24px rgba(45,171,85,0.13);
+      transform: translateX(4px);
+    }
+
+    .rank-btn {
+      width: 100%;
+      background: transparent;
+      border: none;
+      padding: 16px 20px;
+      display: grid;
+      grid-template-columns: 52px 1fr auto;
+      align-items: center;
+      gap: 16px;
+      cursor: pointer;
+      color: inherit;
+      text-align: left;
+    }
+
+    .rank-medal {
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 16px;
+      letter-spacing: 0.5px;
+      flex-shrink: 0;
+    }
+
+    .rank-medal.gold   { background: linear-gradient(135deg, #ffd700, #ffb300); color: #7a4f00; }
+    .rank-medal.silver { background: linear-gradient(135deg, #e0e0e0, #bdbdbd); color: #424242; }
+    .rank-medal.bronze { background: linear-gradient(135deg, #cd7f32, #a0522d); color: #fff; }
+    .rank-medal.plain  { background: var(--panel2); border: 1px solid var(--border); color: var(--text2); }
+
+    .player-name {
+      font-weight: 700;
+      font-size: 15px;
+      color: var(--text);
+      margin-bottom: 3px;
+    }
+
+    .player-meta {
+      font-size: 12px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .player-meta .dot {
+      width: 3px; height: 3px;
+      background: var(--border);
+      border-radius: 50%;
+    }
+
+    .rank-tag {
+      background: var(--accent-lt);
+      color: var(--accent);
+      border: 1px solid rgba(45,171,85,0.25);
+      padding: 2px 9px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .chevron-icon {
+      color: var(--accent);
+      font-size: 22px;
+      font-weight: 300;
+      line-height: 1;
+      transition: transform 0.2s ease;
+    }
+
+    .rank-item:hover .chevron-icon { transform: translateX(3px); }
+
+    /* ════════════════════════════
+       ANIMATIONS
+    ════════════════════════════ */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .rank-item {
+      animation: fadeUp 0.35s ease both;
+    }
+
+    /* ════════════════════════════
+       NAV LINKS
+    ════════════════════════════ */
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .nav-links a {
+      color: var(--text2);
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 13px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      transition: color 0.3s ease;
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid transparent;
+    }
+
+    .nav-links a:hover {
+      color: var(--accent);
+      border-color: var(--accent-lt);
+      background: rgba(45, 171, 85, 0.05);
+    }
+
+    .nav-links a.active {
+      color: var(--accent);
+      background: var(--accent-lt);
+      border-color: rgba(45, 171, 85, 0.3);
+    }
+
+    /* ════════════════════════════
+       RESPONSIVE
+    ════════════════════════════ */
+    @media (max-width: 860px) {
+      .hero { grid-template-columns: 1fr; gap: 40px; }
+      .hero-right { display: none; }
+      .stats-bar { grid-template-columns: repeat(3, 1fr); }
+    }
+
+    @media (max-width: 600px) {
+      .hero { padding: 48px 0 40px; }
+      .hero h1 { font-size: 56px; }
+      .stats-bar { grid-template-columns: 1fr; }
+      .rank-btn { grid-template-columns: 48px 1fr; }
+      .chevron-icon { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+
+    <!-- NAV -->
+    <nav>
+      <div class="nav-logo">TENNIS<span>ANALYTICS</span></div>
+      <div class="nav-links">
+        <a href="index.html" class="active">Players</a>
+        <a href="tournaments.html">Tournaments</a>
+      </div>
+      <div class="nav-tag">Live Rankings</div>
+    </nav>
+
+    <!-- HERO -->
+    <section class="hero">
+      <div class="hero-left">
+        <div class="hero-eyebrow">World Rankings Database</div>
+        <h1>The <em>Court</em><br>Never Lies.</h1>
+        <p class="hero-sub">
+          Explore official ATP rankings across every season. Dive into match-by-match stats, serve percentages, and head-to-head performance for every ranked player.
+        </p>
+        <div class="hero-selector">
+          <span class="selector-label">Season</span>
+          <select class="season-select" id="yearSelect">
+            <option value="">Select year…</option>
+          </select>
+          <button class="load-btn" id="loadBtn">
+            View Rankings →
+          </button>
+        </div>
+      </div>
+
+      <div class="hero-right">
+        <div class="deco-ball"></div>
+        <div class="stats-showcase">
+          <div class="showcase-title">Top Ranked · All Time</div>
+          <div class="podium-list">
+            <div class="podium-item">
+              <span class="podium-num">1</span>
+              <span class="podium-medal medal-1">N</span>
+              <span class="podium-name">Novak Djokovic</span>
+              <span class="podium-rank">#1</span>
+            </div>
+            <div class="podium-item">
+              <span class="podium-num">2</span>
+              <span class="podium-medal medal-2">R</span>
+              <span class="podium-name">Rafael Nadal</span>
+              <span class="podium-rank">#2</span>
+            </div>
+            <div class="podium-item">
+              <span class="podium-num">3</span>
+              <span class="podium-medal medal-3">F</span>
+              <span class="podium-name">Roger Federer</span>
+              <span class="podium-rank">#3</span>
+            </div>
+            <div class="podium-item">
+              <span class="podium-num">4</span>
+              <span class="podium-medal medal-n">C</span>
+              <span class="podium-name">Carlos Alcaraz</span>
+              <span class="podium-rank">#4</span>
+            </div>
+          </div>
+          <div class="showcase-footer">Select a season to load live data</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- STATS BAR -->
+    <div class="stats-bar">
+      <div class="stat-item">
+        <div class="stat-num" id="statSeasons">—</div>
+        <div class="stat-lbl">Seasons Tracked</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num" id="statPlayers">—</div>
+        <div class="stat-lbl">Ranked Players</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num" id="statYear">—</div>
+        <div class="stat-lbl">Season Loaded</div>
+      </div>
+    </div>
+
+    <!-- RANKINGS -->
+    <section class="rankings-section">
+      <div class="section-header">
+        <div class="section-title">Season <span>Rankings</span></div>
+        <div class="section-meta" id="sectionMeta"></div>
+      </div>
+      <div id="rankingsContainer">
+        <div class="state-box">
+          <span class="state-icon">🎾</span>
+          <p>Select a season above to load the full rankings board.</p>
+        </div>
+      </div>
+    </section>
+
+  </div><!-- /page -->
+
+  <script>
+    const yearSelect = document.getElementById('yearSelect');
+    const loadBtn    = document.getElementById('loadBtn');
+    const container  = document.getElementById('rankingsContainer');
+    const meta       = document.getElementById('sectionMeta');
+
+    // ── Load years ──
+    async function loadYears() {
+      try {
+        const res = await fetch('/years');
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        const years = (data.years || []).slice().sort((a, b) => b - a);
+
+        document.getElementById('statSeasons').textContent = years.length || '—';
+
+        years.forEach(y => {
+          const opt = document.createElement('option');
+          opt.value = String(y);
+          opt.textContent = String(y);
+          yearSelect.appendChild(opt);
+        });
+      } catch {
+        document.getElementById('statSeasons').textContent = '—';
+      }
+    }
+
+    // ── Medal class ──
+    function medalClass(i) {
+      if (i === 0) return 'gold';
+      if (i === 1) return 'silver';
+      if (i === 2) return 'bronze';
+      return 'plain';
+    }
+
+    // ── Render list ──
+    function renderRankings(players, year) {
+      document.getElementById('statPlayers').textContent = players.length;
+      document.getElementById('statYear').textContent    = year;
+      meta.textContent = `${players.length} player${players.length !== 1 ? 's' : ''} ranked in ${year}`;
+
+      const list = document.createElement('div');
+      list.className = 'rank-list';
+
+      players.forEach((p, i) => {
+        const rankVal = p.rank != null ? `#${p.rank}` : 'N/A';
+        const initial = (p.name || '?')[0].toUpperCase();
+        const delay   = Math.min(i * 30, 400);
+
+        const item = document.createElement('div');
+        item.className = 'rank-item';
+        item.style.animationDelay = `${delay}ms`;
+
+        item.innerHTML = `
+          <button class="rank-btn" type="button">
+            <span class="rank-medal ${medalClass(i)}">${i + 1}</span>
+            <span>
+              <div class="player-name">${p.name}</div>
+              <div class="player-meta">
+                <span class="rank-tag">${rankVal}</span>
+                <span class="dot"></span>
+                <span>Season ${year}</span>
+              </div>
+            </span>
+            <span class="chevron-icon">›</span>
+          </button>`;
+
+        item.querySelector('button').addEventListener('click', () => {
+          window.location.href = `player.html?name=${encodeURIComponent(p.name)}&year=${year}`;
+        });
+
+        list.appendChild(item);
+      });
+
+      container.innerHTML = '';
+      container.appendChild(list);
+    }
+
+    // ── Load players ──
+    async function loadPlayers(year) {
+      if (!year) return;
+
+      container.innerHTML = `
+        <div class="loader-wrap">
+          <div class="spinner"></div>
+          <p>Loading ${year} rankings…</p>
+        </div>`;
+      meta.textContent = '';
+
+      try {
+        const res = await fetch(`/players?year=${year}`);
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+
+        const players = Array.isArray(data.ranked_players)
+          ? data.ranked_players
+          : (data.players || []).map(name => ({ name, rank: null }));
+
+        if (!players.length) {
+          container.innerHTML = `
+            <div class="state-box">
+              <span class="state-icon">📭</span>
+              <p>No players found for ${year}.</p>
+            </div>`;
+          return;
+        }
+
+        renderRankings(players, year);
+      } catch {
+        container.innerHTML = `
+          <div class="state-box error-box">
+            <span class="state-icon">⚠️</span>
+            <p>Could not load rankings. Please try again.</p>
+          </div>`;
+      }
+    }
+
+    // ── Events ──
+    loadBtn.addEventListener('click', () => loadPlayers(yearSelect.value));
+    yearSelect.addEventListener('change', e => {
+      if (e.target.value) loadPlayers(e.target.value);
+    });
+
+    loadYears();
+  </script>
+</body>
+</html>

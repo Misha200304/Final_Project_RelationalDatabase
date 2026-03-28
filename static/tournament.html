@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tournament Details — Tennis Analytics</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,600;0,9..40,700;1,9..40,300&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:         #eef7f0;
+      --panel:      #ffffff;
+      --panel2:     #f4faf5;
+      --header-bg:  #1e5c30;
+      --header2:    #174d28;
+      --accent:     #2dab55;
+      --accent2:    #22c45e;
+      --accent-lt:  #d4f5df;
+      --text:       #0f2e19;
+      --text2:      #2d5a3d;
+      --muted:      #6a967a;
+      --border:     #cde8d5;
+      --gold:       #d4af37;
+      --gold-lt:    #fffacd;
+      --grass:      #22a047;
+      --clay:       #d77a3e;
+      --hard:       #4a90e2;
+    }
+
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 70% 50% at 5% 0%,   rgba(45,171,85,0.13) 0%, transparent 55%),
+        radial-gradient(ellipse 50% 70% at 95% 100%, rgba(45,171,85,0.08) 0%, transparent 55%),
+        repeating-linear-gradient(0deg,   transparent, transparent 59px, rgba(45,171,85,0.06) 60px),
+        repeating-linear-gradient(90deg,  transparent, transparent 59px, rgba(45,171,85,0.06) 60px);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, transparent, var(--accent2), var(--accent), transparent);
+      z-index: 100;
+    }
+
+    .page {
+      position: relative;
+      z-index: 1;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px 100px;
+    }
+
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 28px 0 24px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-logo {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 22px;
+      letter-spacing: 3px;
+      color: var(--accent);
+    }
+
+    .back-btn {
+      background: var(--accent-lt);
+      border: 1px solid rgba(45,171,85,0.3);
+      color: var(--accent);
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.2s;
+    }
+
+    .back-btn:hover {
+      background: var(--accent);
+      color: white;
+    }
+
+    .header-section {
+      background: linear-gradient(135deg, var(--header-bg) 0%, var(--header2) 100%);
+      color: white;
+      padding: 28px 24px;
+      border-radius: 12px;
+      margin: 24px 0;
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .header-info h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 36px;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+
+    .header-info p {
+      font-size: 14px;
+      opacity: 0.9;
+      margin: 4px 0;
+    }
+
+    .header-badges {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      background: rgba(255,255,255,0.2);
+      border: 1px solid rgba(255,255,255,0.4);
+      color: white;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .badge.surface {
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .badge.grass { background: var(--grass); border: 1px solid rgba(34, 160, 71, 0.5); }
+    .badge.clay { background: var(--clay); border: 1px solid rgba(215, 122, 62, 0.5); }
+    .badge.hard { background: var(--hard); border: 1px solid rgba(74, 144, 226, 0.5); }
+
+    .champion-banner {
+      background: linear-gradient(135deg, var(--gold) 0%, var(--gold-lt) 100%);
+      border-radius: 12px;
+      padding: 24px;
+      text-align: center;
+      margin: 24px 0;
+      box-shadow: 0 12px 24px rgba(212, 175, 55, 0.3);
+      color: #1a1a1a;
+    }
+
+    .champion-banner .trophy { font-size: 48px; margin-bottom: 12px; }
+    .champion-banner h2 { font-family: 'Bebas Neue', sans-serif; font-size: 32px; letter-spacing: 1px; margin-bottom: 4px; }
+    .champion-banner p { font-size: 14px; color: #555; }
+
+    .stats-comparison {
+      background: var(--panel);
+      border-radius: 12px;
+      padding: 24px;
+      margin: 24px 0;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+
+    .stats-comparison h3 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 20px;
+      letter-spacing: 1px;
+      color: var(--header-bg);
+      margin-bottom: 20px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    .stat-card {
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+    }
+
+    .stat-card h4 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 18px;
+      letter-spacing: 0.5px;
+      color: var(--header-bg);
+      margin-bottom: 12px;
+    }
+
+    .stat-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+
+    .stat-row:last-child { border: 0; }
+    .stat-label { color: var(--muted); font-weight: 600; }
+    .stat-val { text-align: center; font-weight: 700; }
+    .stat-val.highlight { background: var(--gold-lt); border-radius: 4px; padding: 4px; }
+
+    .draw-section {
+      background: var(--panel);
+      border-radius: 12px;
+      padding: 24px;
+      margin: 24px 0;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+
+    .draw-section h3 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 20px;
+      letter-spacing: 1px;
+      color: var(--header-bg);
+      margin-bottom: 20px;
+    }
+
+    .round-group {
+      margin-bottom: 20px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .round-header {
+      background: linear-gradient(135deg, var(--header-bg) 0%, var(--header2) 100%);
+      color: white;
+      padding: 12px 16px;
+      cursor: pointer;
+      font-weight: 700;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      user-select: none;
+    }
+
+    .round-header:hover { background: var(--header-bg); }
+
+    .round-toggle {
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 18px;
+    }
+
+    .round-matches {
+      background: var(--panel2);
+      display: flex;
+      flex-direction: column;
+      max-height: 1000px;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+    }
+
+    .round-group.collapsed .round-matches { max-height: 0; }
+
+    .match-row {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: center;
+      font-size: 13px;
+    }
+
+    .match-row:last-child { border: 0; }
+
+    .match-players {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex: 1;
+    }
+
+    .match-player { display: flex; align-items: center; gap: 8px; }
+    .match-player.winner { font-weight: 700; color: var(--text); }
+    .match-player.loser { color: var(--muted); }
+
+    .player-seed {
+      background: var(--accent-lt);
+      border: 1px solid rgba(45,171,85,0.3);
+      color: var(--accent);
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 11px;
+      font-weight: 700;
+      min-width: 32px;
+      text-align: center;
+    }
+
+    .match-score {
+      text-align: right;
+      font-weight: 700;
+      color: var(--text2);
+      white-space: nowrap;
+    }
+
+    .score-time { font-size: 12px; color: var(--muted); }
+
+    .loading,
+    .error {
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+    }
+
+    .loading {
+      background: var(--accent-lt);
+      color: var(--accent);
+    }
+
+    .error {
+      background: #ffe5e5;
+      color: #c0202a;
+    }
+
+    @media (max-width: 768px) {
+      .header-top { flex-direction: column; }
+      .stats-grid { grid-template-columns: 1fr; }
+      .match-row { grid-template-columns: 1fr; }
+      .match-score { text-align: left; margin-top: 6px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <nav>
+      <div class="nav-logo">TENNIS <span>STATS</span></div>
+      <button class="back-btn" onclick="window.history.back()">← Back</button>
+    </nav>
+
+    <div id="content">
+      <div class="loading">Loading tournament...</div>
+    </div>
+  </div>
+
+  <script>
+    function getQueryParams() {
+      const params = new URLSearchParams(window.location.search);
+      return { name: params.get('name') || '', year: params.get('year') || '' };
+    }
+
+    function getSurfaceBadgeClass(surface) {
+      if (!surface) return '';
+      const lower = surface.toLowerCase();
+      if (lower.includes('grass')) return 'grass';
+      if (lower.includes('clay')) return 'clay';
+      if (lower.includes('hard')) return 'hard';
+      return '';
+    }
+
+    function formatStat(value) {
+      return value !== null && value !== undefined ? value : '—';
+    }
+
+    function formatPct(value) {
+      return value !== null && value !== undefined ? (value * 100).toFixed(1) + '%' : '—';
+    }
+
+    function formatStatForComparison(stat1, stat2, player) {
+      // Returns formatted stat value with highlight if it's the better value
+      const isBetter = player === 1 ? (stat1 > stat2) : (stat2 > stat1);
+      if (stat1 === null && stat1 === stat2) return { val: '—', highlight: false };
+      if (player === 1 && stat1 === null) return { val: '—', highlight: false };
+      if (player === 2 && stat2 === null) return { val: '—', highlight: false };
+
+      const val = player === 1 ? stat1 : stat2;
+      return { val: formatStat(val), highlight: isBetter };
+    }
+
+    function renderTournament(data) {
+      const surfaceClass = getSurfaceBadgeClass(data.surface);
+      const surfaceBadgeHTML = data.surface ? `<span class="badge surface ${surfaceClass}">${data.surface}</span>` : '';
+
+      let drawnHTML = `
+        <div class="header-section">
+          <div class="header-top">
+            <div class="header-info">
+              <h1>${data.tourney_name}</h1>
+              <p>Season ${getQueryParams().year}</p>
+            </div>
+            <div class="header-badges">
+              ${surfaceBadgeHTML}
+              <span class="badge">${data.tourney_level}</span>
+              <span class="badge">Draw: ${data.draw_size || 'N/A'}</span>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Champion banner
+      if (data.champion) {
+        drawnHTML += `
+          <div class="champion-banner">
+            <div class="trophy">🏆</div>
+            <h2>${data.champion}</h2>
+            <p>Tournament Champion</p>
+          </div>
+        `;
+      }
+
+      // Finalist stats comparison
+      if (data.finalist1_name && data.finalist1_stats && data.finalist2_name && data.finalist2_stats) {
+        const stats1 = data.finalist1_stats;
+        const stats2 = data.finalist2_stats;
+
+        const aces1 = formatStatForComparison(stats1.aces, stats2.aces, 1);
+        const aces2 = formatStatForComparison(stats1.aces, stats2.aces, 2);
+        const dfs1 = formatStatForComparison(stats1.double_faults, stats2.double_faults, 1);
+        const dfs2 = formatStatForComparison(stats1.double_faults, stats2.double_faults, 2);
+        const fs1 = formatStatForComparison(stats1.first_serve_pct, stats2.first_serve_pct, 1);
+        const fs2 = formatStatForComparison(stats1.first_serve_pct, stats2.first_serve_pct, 2);
+        const fsw1 = formatStatForComparison(stats1.first_serve_won_pct, stats2.first_serve_won_pct, 1);
+        const fsw2 = formatStatForComparison(stats1.first_serve_won_pct, stats2.first_serve_won_pct, 2);
+        const ssw1 = formatStatForComparison(stats1.second_serve_won_pct, stats2.second_serve_won_pct, 1);
+        const ssw2 = formatStatForComparison(stats1.second_serve_won_pct, stats2.second_serve_won_pct, 2);
+        const bps1 = formatStatForComparison(stats1.bp_save_pct, stats2.bp_save_pct, 1);
+        const bps2 = formatStatForComparison(stats1.bp_save_pct, stats2.bp_save_pct, 2);
+
+        drawnHTML += `
+          <div class="stats-comparison">
+            <h3>Final Match Stats</h3>
+            <div class="stats-grid">
+              <div class="stat-card">
+                <h4>${data.finalist1_name}</h4>
+                <div class="stat-row">
+                  <span class="stat-label">Aces</span>
+                  <span class="stat-val ${aces1.highlight ? 'highlight' : ''}">${aces1.val}</span>
+                </div>
+                <div class="stat-row">
+                  <span class="stat-label">Double Faults</span>
+                  <span class="stat-val">${dfs1.val}</span>
+                </div>
+                <div class="stat-row">
+                  <span class="stat-label">1st Serve %</span>
+                  <span class="stat-val ${fs1.highlight ? 'highlight' : ''}">${formatPct(stats1.first_serve_pct)}</span>
+                </div>
+                <div class="stat-row">
+                  <span class="stat-label">1st Serve Won %</span>
+                  <span class="stat-val ${fsw1.highlight ? 'highlight' : ''}">${formatPct(stats1.first_serve_won_pct)}</span>
+                </div>
+                <div class="stat-row">
+                  <span class="stat-label">2nd Serve Won %</span>
+                  <span class="stat-val ${ssw1.highlight ? 'highlight' : ''}">${formatPct(stats1.second_serve_won_pct)}</span>
+                </div>
+                <div class="stat-row">
+                  <span class="stat-label">BP Save %</span>
+                  <span class="stat-val ${bps1.highlight ? 'highlight' : ''}">${formatPct(stats1.bp_save_pct)}</span>
+                </div>
+              </div>
+
+              <div class="stat-card">
+                <h4>${data.finalist2_name}</h4>
+                <div class="stat-row">
+                  <span class="stat-label">Aces</span>
+                  <span class="stat-val ${aces2.highlight ? 'highlight' : ''}">${aces2.val}</span>
+                </div>
+                <div class="stat-row">
+                  <span class="stat-label">Double Faults</span>
+                  <span class="stat-val">${dfs2.val}</span>
+                </div>
+                <div class="stat-row">
+                  <span class="stat-label">1st Serve %</span>
+                  <span class="stat-val ${fs2.highlight ? 'highlight' : ''}">${formatPct(stats2.first_serve_pct)}</span>
+                </div>
+                <div class="stat-row">
+                  <span class="stat-label">1st Serve Won %</span>
+                  <span class="stat-val ${fsw2.highlight ? 'highlight' : ''}">${formatPct(stats2.first_serve_won_pct)}</span>
+                </div>
+                <div class="stat-row">
+                  <span class="stat-label">2nd Serve Won %</span>
+                  <span class="stat-val ${ssw2.highlight ? 'highlight' : ''}">${formatPct(stats2.second_serve_won_pct)}</span>
+                </div>
+                <div class="stat-row">
+                  <span class="stat-label">BP Save %</span>
+                  <span class="stat-val ${bps2.highlight ? 'highlight' : ''}">${formatPct(stats2.bp_save_pct)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      // Draw section
+      drawnHTML += `<div class="draw-section"><h3>Full Draw</h3><div id="drawGroups"></div></div>`;
+
+      document.getElementById('content').innerHTML = drawnHTML;
+
+      // Group draw by round
+      const roundMap = {};
+      (data.draw || []).forEach(match => {
+        if (!roundMap[match.round]) roundMap[match.round] = [];
+        roundMap[match.round].push(match);
+      });
+
+      const roundOrder = ['R128', 'R64', 'R32', 'R16', 'QF', 'SF', 'F'];
+      const sortedRounds = Object.keys(roundMap).sort(
+        (a, b) => roundOrder.indexOf(a) - roundOrder.indexOf(b)
+      );
+
+      let drawHTML = '';
+      sortedRounds.forEach((round, idx) => {
+        const matches = roundMap[round];
+        const roundLabel = round === 'F' ? 'Final' : round === 'SF' ? 'Semifinals' : round === 'QF' ? 'Quarterfinals' : round;
+
+        drawHTML += `
+          <div class="round-group" data-round="${round}">
+            <div class="round-header" onclick="toggleRound(this)">
+              <span>${roundLabel} (${matches.length} ${matches.length === 1 ? 'match' : 'matches'})</span>
+              <span class="round-toggle">−</span>
+            </div>
+            <div class="round-matches">
+        `;
+
+        matches.forEach(match => {
+          const winnerSeed = match.winner_seed ? `[${match.winner_seed}]` : '';
+          const loserSeed = match.loser_seed ? `[${match.loser_seed}]` : '';
+          const winnerRank = match.winner_rank ? `#${match.winner_rank}` : '';
+          const loserRank = match.loser_rank ? `#${match.loser_rank}` : '';
+          const timeStr = match.minutes ? `${match.minutes}m` : '';
+
+          drawHTML += `
+            <div class="match-row">
+              <div class="match-players">
+                <div class="match-player winner">
+                  ${winnerSeed ? `<span class="player-seed">${winnerSeed}</span>` : ''}
+                  <span>${match.winner_name}</span>
+                  ${winnerRank ? `<span style="color: var(--muted); font-size: 12px;">${winnerRank}</span>` : ''}
+                </div>
+                <div class="match-player loser">
+                  ${loserSeed ? `<span class="player-seed">${loserSeed}</span>` : ''}
+                  <span>${match.loser_name}</span>
+                  ${loserRank ? `<span style="color: var(--muted); font-size: 12px;">${loserRank}</span>` : ''}
+                </div>
+              </div>
+              <div class="match-score">
+                ${match.score || '—'}
+                ${timeStr ? `<div class="score-time">${timeStr}</div>` : ''}
+              </div>
+            </div>
+          `;
+        });
+
+        drawHTML += `</div></div>`;
+      });
+
+      document.getElementById('drawGroups').innerHTML = drawHTML;
+    }
+
+    function toggleRound(header) {
+      header.closest('.round-group').classList.toggle('collapsed');
+      const toggle = header.querySelector('.round-toggle');
+      toggle.textContent = header.closest('.round-group').classList.contains('collapsed') ? '+' : '−';
+    }
+
+    async function loadTournament() {
+      const { name, year } = getQueryParams();
+      if (!name || !year) {
+        document.getElementById('content').innerHTML = '<div class="error">Missing tournament name or year</div>';
+        return;
+      }
+
+      try {
+        const response = await fetch(`/tournament?name=${encodeURIComponent(name)}&year=${year}`);
+        if (!response.ok) throw new Error('Failed to load tournament');
+        const data = await response.json();
+        renderTournament(data);
+      } catch (error) {
+        document.getElementById('content').innerHTML = '<div class="error">Error loading tournament. Please try again.</div>';
+      }
+    }
+
+    loadTournament();
+  </script>
+</body>
+</html>

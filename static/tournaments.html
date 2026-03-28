@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tennis Analytics — Tournaments</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,600;0,9..40,700;1,9..40,300&display=swap" rel="stylesheet" />
+    <style>
+        :root {
+            --bg:         #eef7f0;
+            --panel:      #ffffff;
+            --panel2:     #f4faf5;
+            --header-bg:  #1e5c30;
+            --header2:    #174d28;
+            --accent:     #2dab55;
+            --accent2:    #22c45e;
+            --accent-lt:  #d4f5df;
+            --text:       #0f2e19;
+            --text2:      #2d5a3d;
+            --muted:      #6a967a;
+            --border:     #cde8d5;
+            --grand:      #d4af37;
+            --masters:    #4a90e2;
+            --atp:        #2dab55;
+            --other:      #8250a8;
+        }
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 70% 50% at 5% 0%, rgba(45,171,85,0.13) 0%, transparent 55%),
+                radial-gradient(ellipse 50% 70% at 95% 100%, rgba(45,171,85,0.08) 0%, transparent 55%),
+                repeating-linear-gradient(0deg, transparent, transparent 59px, rgba(45,171,85,0.06) 60px),
+                repeating-linear-gradient(90deg, transparent, transparent 59px, rgba(45,171,85,0.06) 60px);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, transparent, var(--accent2), var(--accent), transparent);
+            z-index: 100;
+        }
+
+        .page {
+            position: relative;
+            z-index: 1;
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 24px 100px;
+        }
+
+        nav {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 40px;
+            padding: 28px 0 24px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        nav::after {
+            content: '';
+            flex: 1;
+        }
+
+        .nav-logo {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 22px;
+            letter-spacing: 3px;
+            color: var(--accent);
+        }
+
+        .nav-logo span { color: var(--text); }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .nav-links a {
+            color: var(--text2);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 13px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            transition: color 0.3s ease;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid transparent;
+        }
+
+        .nav-links a:hover {
+            color: var(--accent);
+            border-color: var(--accent-lt);
+            background: rgba(45, 171, 85, 0.05);
+        }
+
+        .nav-links a.active {
+            color: var(--accent);
+            background: var(--accent-lt);
+            border-color: rgba(45, 171, 85, 0.3);
+        }
+
+        .nav-tag {
+            background: var(--accent-lt);
+            border: 1px solid rgba(45,171,85,0.3);
+            color: var(--accent);
+            padding: 5px 14px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .hero {
+            padding: 62px 0 34px;
+            border-bottom: 1px solid var(--border);
+            animation: fadeUp 0.5s ease both;
+        }
+
+        .hero-eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 2.5px;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 20px;
+        }
+
+        .hero-eyebrow::before {
+            content: '';
+            display: block;
+            width: 28px;
+            height: 2px;
+            background: var(--accent);
+            border-radius: 2px;
+        }
+
+        .hero h1 {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: clamp(52px, 7vw, 88px);
+            line-height: 0.9;
+            letter-spacing: 2px;
+            color: var(--text);
+            margin-bottom: 20px;
+        }
+
+        .hero h1 em {
+            color: var(--accent);
+            font-style: normal;
+        }
+
+        .hero-sub {
+            max-width: 760px;
+            color: var(--text2);
+            font-size: 16px;
+            line-height: 1.65;
+            margin-bottom: 22px;
+        }
+
+        .control-panel {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 18px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            align-items: center;
+            box-shadow: 0 14px 30px rgba(15,46,25,0.08);
+        }
+
+        .control-label {
+            color: var(--muted);
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            font-size: 12px;
+        }
+
+        .season-select {
+            border: 1px solid var(--border);
+            background: var(--panel2);
+            color: var(--text);
+            font: inherit;
+            font-size: 14px;
+            border-radius: 10px;
+            padding: 10px 14px;
+            min-width: 160px;
+            outline: none;
+            transition: border 0.2s, box-shadow 0.2s;
+        }
+
+        .season-select:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 4px rgba(45,171,85,0.14);
+        }
+
+        .level-filters {
+            width: 100%;
+            display: grid;
+            grid-template-columns: repeat(4, minmax(160px, 1fr));
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .level-btn {
+            border: 1px solid var(--border);
+            background: var(--panel2);
+            color: var(--text2);
+            border-radius: 12px;
+            padding: 10px 14px;
+            font-weight: 700;
+            font-size: 13px;
+            letter-spacing: 0.3px;
+            cursor: pointer;
+            transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s, color 0.2s;
+        }
+
+        .level-btn:hover {
+            transform: translateY(-1px);
+            border-color: var(--accent);
+        }
+
+        .level-btn.active {
+            color: white;
+            border-color: transparent;
+            box-shadow: 0 8px 20px rgba(15,46,25,0.2);
+        }
+
+        .level-btn[data-level="G"].active { background: linear-gradient(135deg, #e2bc42, #c2981a); }
+        .level-btn[data-level="M"].active { background: linear-gradient(135deg, #5ca5ff, #326ec5); }
+        .level-btn[data-level="A"].active { background: linear-gradient(135deg, #2dad56, #1d7f3d); }
+        .level-btn[data-level="OTHER"].active { background: linear-gradient(135deg, #9a68be, #6f4595); }
+
+        .section-header {
+            margin: 34px 0 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .section-title {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 34px;
+            color: var(--text);
+            letter-spacing: 1px;
+        }
+
+        .section-title span { color: var(--accent); }
+
+        .section-meta {
+            color: var(--muted);
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+        }
+
+        .tournaments-list {
+            display: grid;
+            gap: 12px;
+        }
+
+        .tournament-item {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 16px;
+            text-decoration: none;
+            color: inherit;
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            align-items: center;
+            gap: 14px;
+            transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+            animation: fadeUp 0.35s ease both;
+        }
+
+        .tournament-item:hover {
+            transform: translateY(-2px);
+            border-color: #9adbb1;
+            box-shadow: 0 16px 28px rgba(15,46,25,0.12);
+        }
+
+        .surface-badge {
+            width: 52px;
+            height: 52px;
+            border-radius: 999px;
+            display: grid;
+            place-items: center;
+            color: white;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.35);
+        }
+
+        .surface-grass { background: linear-gradient(135deg, #27a44b, #1f7f3a); }
+        .surface-clay { background: linear-gradient(135deg, #de7d3b, #bc5f25); }
+        .surface-hard { background: linear-gradient(135deg, #4d94e4, #2d66b4); }
+        .surface-carpet { background: linear-gradient(135deg, #9f65c5, #7a45a4); }
+
+        .tournament-name {
+            font-weight: 700;
+            font-size: 18px;
+            color: var(--text);
+            margin-bottom: 6px;
+        }
+
+        .tournament-details {
+            color: var(--text2);
+            font-size: 13px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .dot {
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: var(--border);
+        }
+
+        .level-badge {
+            border-radius: 999px;
+            padding: 4px 10px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            border: 1px solid transparent;
+        }
+
+        .level-g { background: rgba(212,175,55,0.14); color: #8a6a00; border-color: rgba(212,175,55,0.32); }
+        .level-m { background: rgba(74,144,226,0.14); color: #245ea6; border-color: rgba(74,144,226,0.32); }
+        .level-a { background: rgba(45,171,85,0.14); color: #1f7540; border-color: rgba(45,171,85,0.32); }
+        .level-other { background: rgba(130,80,168,0.14); color: #693394; border-color: rgba(130,80,168,0.32); }
+
+        .arrow {
+            color: var(--accent);
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .state-box {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 24px;
+            color: var(--text2);
+            text-align: center;
+            font-size: 15px;
+        }
+
+        .error-box {
+            background: #fff1f1;
+            border-color: #f2c6c6;
+            color: #b63232;
+        }
+
+        .loader-wrap {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 28px;
+            text-align: center;
+            color: var(--text2);
+        }
+
+        .spinner {
+            width: 36px;
+            height: 36px;
+            border: 3px solid var(--accent-lt);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.9s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 860px) {
+            .level-filters { grid-template-columns: repeat(2, minmax(140px, 1fr)); }
+        }
+
+        @media (max-width: 640px) {
+            nav { gap: 16px; }
+            .nav-tag { display: none; }
+            .hero h1 { font-size: 56px; }
+            .tournament-item {
+                grid-template-columns: 1fr;
+                align-items: start;
+            }
+            .arrow { display: none; }
+            .level-filters { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <nav>
+            <div class="nav-logo">TENNIS<span>ANALYTICS</span></div>
+            <div class="nav-links">
+                <a href="index.html">Players</a>
+                <a href="tournaments.html" class="active">Tournaments</a>
+            </div>
+            <div class="nav-tag">Live Rankings</div>
+        </nav>
+
+        <section class="hero">
+            <div class="hero-eyebrow">Tournament Database</div>
+            <h1>Tournament <em>Control Room</em></h1>
+            <p class="hero-sub">
+                Explore ATP tournaments by season and filter by level. Pick one level button to focus on a single category: Grand Slams, Masters 1000, ATP 250/500, or Others.
+            </p>
+
+            <div class="control-panel">
+                <span class="control-label">Season</span>
+                <select class="season-select" id="yearSelect">
+                    <option value="">Loading years...</option>
+                </select>
+
+                <div class="level-filters" id="levelFilters">
+                    <button class="level-btn active" data-level="G" type="button">Grand Slams</button>
+                    <button class="level-btn" data-level="M" type="button">Masters 1000</button>
+                    <button class="level-btn" data-level="A" type="button">ATP 250 / 500</button>
+                    <button class="level-btn" data-level="OTHER" type="button">Others</button>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <div class="section-header">
+                <div class="section-title">Filtered <span>Tournaments</span></div>
+                <div class="section-meta" id="sectionMeta"></div>
+            </div>
+            <div id="content">
+                <div class="state-box">Choose a season to load tournaments.</div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        const yearSelect = document.getElementById('yearSelect');
+        const content = document.getElementById('content');
+        const sectionMeta = document.getElementById('sectionMeta');
+        const filterButtons = Array.from(document.querySelectorAll('.level-btn'));
+
+        let allTournaments = [];
+        let activeLevel = 'G';
+
+        function levelToGroup(levelCode) {
+            if (levelCode === 'G') return 'G';
+            if (levelCode === 'M') return 'M';
+            if (levelCode === 'A') return 'A';
+            return 'OTHER';
+        }
+
+        function getSurfaceBadgeClass(surface) {
+            if (!surface) return 'surface-hard';
+            const lower = surface.toLowerCase();
+            if (lower.includes('grass')) return 'surface-grass';
+            if (lower.includes('clay')) return 'surface-clay';
+            if (lower.includes('carpet')) return 'surface-carpet';
+            return 'surface-hard';
+        }
+
+        function decodeLevelShort(code) {
+            const levelMap = {
+                G: 'Grand Slam',
+                M: 'Masters 1000',
+                A: 'ATP 250/500',
+                F: 'Tour Finals',
+                O: 'Olympics'
+            };
+            return levelMap[code] || (code || 'Unknown');
+        }
+
+        function levelBadgeClass(code) {
+            if (code === 'G') return 'level-g';
+            if (code === 'M') return 'level-m';
+            if (code === 'A') return 'level-a';
+            return 'level-other';
+        }
+
+        function activeFilterLabel() {
+            if (activeLevel === 'G') return 'Grand Slams';
+            if (activeLevel === 'M') return 'Masters 1000';
+            if (activeLevel === 'A') return 'ATP 250/500';
+            return 'Others';
+        }
+
+        function renderFilteredTournaments() {
+            const year = yearSelect.value;
+            const filtered = allTournaments.filter(t => levelToGroup(t.tourney_level) === activeLevel);
+
+            sectionMeta.textContent = `${filtered.length} tournament${filtered.length === 1 ? '' : 's'} in ${year} · ${activeFilterLabel()}`;
+
+            if (!filtered.length) {
+                content.innerHTML = `<div class="state-box">No tournaments in ${year} for ${activeFilterLabel()}.</div>`;
+                return;
+            }
+
+            const html = filtered.map((tournament, idx) => {
+                const surface = tournament.surface || 'Hard';
+                const surfaceClass = getSurfaceBadgeClass(surface);
+                const levelLabel = decodeLevelShort(tournament.tourney_level);
+                const levelClass = levelBadgeClass(tournament.tourney_level);
+                const target = `tournament.html?name=${encodeURIComponent(tournament.name)}&year=${year}`;
+                const delay = Math.min(idx * 24, 360);
+
+                return `
+                    <a class="tournament-item" href="${target}" style="animation-delay:${delay}ms;">
+                        <div class="surface-badge ${surfaceClass}">${surface.substring(0, 3).toUpperCase()}</div>
+                        <div>
+                            <div class="tournament-name">${tournament.name}</div>
+                            <div class="tournament-details">
+                                <span>${surface}</span>
+                                <span class="dot"></span>
+                                <span class="level-badge ${levelClass}">${levelLabel}</span>
+                            </div>
+                        </div>
+                        <div class="arrow">›</div>
+                    </a>
+                `;
+            }).join('');
+
+            content.innerHTML = `<div class="tournaments-list">${html}</div>`;
+        }
+
+        async function loadTournaments(year) {
+            if (!year) {
+                content.innerHTML = '<div class="state-box">Please select a season.</div>';
+                sectionMeta.textContent = '';
+                return;
+            }
+
+            content.innerHTML = `
+                <div class="loader-wrap">
+                    <div class="spinner"></div>
+                    <p>Loading tournaments for ${year}...</p>
+                </div>
+            `;
+
+            try {
+                const response = await fetch(`/tournaments?year=${year}`);
+                if (!response.ok) throw new Error('Failed to load tournaments');
+                const data = await response.json();
+                allTournaments = data.tournaments || [];
+                renderFilteredTournaments();
+            } catch (error) {
+                content.innerHTML = '<div class="state-box error-box">Could not load tournaments. Please try again.</div>';
+                sectionMeta.textContent = '';
+            }
+        }
+
+        async function loadYears() {
+            try {
+                const response = await fetch('/years');
+                if (!response.ok) throw new Error('Failed to fetch years');
+                const data = await response.json();
+                const years = (data.years || []).slice().sort((a, b) => b - a);
+
+                yearSelect.innerHTML = '<option value="">Select year...</option>';
+                years.forEach(year => {
+                    const option = document.createElement('option');
+                    option.value = String(year);
+                    option.textContent = String(year);
+                    yearSelect.appendChild(option);
+                });
+
+                if (years.length) {
+                    yearSelect.value = String(years[0]);
+                    await loadTournaments(String(years[0]));
+                }
+            } catch (error) {
+                content.innerHTML = '<div class="state-box error-box">Error loading years. Please refresh the page.</div>';
+            }
+        }
+
+        yearSelect.addEventListener('change', (e) => {
+            loadTournaments(e.target.value);
+        });
+
+        filterButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                activeLevel = btn.dataset.level;
+                filterButtons.forEach(b => b.classList.toggle('active', b === btn));
+                renderFilteredTournaments();
+            });
+        });
+
+        loadYears();
+    </script>
+</body>
+</html>
