@@ -37,6 +37,8 @@ PRED_FM = None
 PRED_FS = None
 PRED_FEATURE_COLS = None
 PRED_INPUT_DIM = None
+PRED_OPTIMIZER = None
+PRED_CRITERION = None
 
 
 # ============================================================================
@@ -116,6 +118,52 @@ class PredictionResponse(BaseModel):
     player2_win_prob: float
     predicted_winner: str
 
+
+class OnlineTrainRequest(BaseModel):
+    p1_imp: float
+    p2_imp: float
+    rank_diff: float
+    surface: str
+    tourney_level: str
+    p1_ace: float
+    p2_ace: float
+    p1_df: float
+    p2_df: float
+    p1_1stin: float
+    p2_1stin: float
+    p1_1stwon: float
+    p2_1stwon: float
+    p1_bpsaved: float
+    p2_bpsaved: float
+    p1_bpfaced: float
+    p2_bpfaced: float
+    p1_bp_conv_pct: float
+    p2_bp_conv_pct: float
+    p1_1st_serve_return_won: float
+    p2_1st_serve_return_won: float
+    p1_2nd_serve_return_won: float
+    p2_2nd_serve_return_won: float
+    target: float
+
+
+class OnlineTrainResponse(BaseModel):
+    p1_prob: float
+    p2_prob: float
+    predicted_winner: str
+    loss: float
+    is_correct: bool
+
+
+class RandomMatchResponse(BaseModel):
+    match_id: str
+    tourney_name: str
+    player1_name: str
+    player2_name: str
+    player1_rank: Optional[int]
+    player2_rank: Optional[int]
+    features: OnlineTrainRequest
+
+
 # ============================================================================
 # Endpoints
 # ============================================================================
@@ -134,7 +182,7 @@ def get_round_order(round_str: Optional[str]) -> int:
 
 def load_prediction_model() -> None:
     """Load model.pth once and cache tensors/model globally."""
-    global PRED_MODEL, PRED_FM, PRED_FS, PRED_FEATURE_COLS, PRED_INPUT_DIM
+    global PRED_MODEL, PRED_FM, PRED_FS, PRED_FEATURE_COLS, PRED_INPUT_DIM, PRED_OPTIMIZER, PRED_CRITERION
 
     model_data = torch.load("model.pth", map_location="cpu")
     PRED_FM = model_data["fm"]
@@ -145,6 +193,9 @@ def load_prediction_model() -> None:
     PRED_MODEL = TennisNet(PRED_INPUT_DIM)
     PRED_MODEL.load_state_dict(model_data["parameters"])
     PRED_MODEL.eval()
+
+    PRED_OPTIMIZER = torch.optim.Adam(PRED_MODEL.parameters(), lr=0.001)
+    PRED_CRITERION = nn.BCEWithLogitsLoss()
 
 
 @app.on_event("startup")
@@ -433,6 +484,8 @@ def get_tournament(name: str, year: int):
         )
 
 
+import random
+
 @app.get("/predict", response_model=PredictionResponse)
 def predict_match(odds1: float, odds2: float):
     if PRED_MODEL is None or PRED_FM is None or PRED_FS is None or PRED_FEATURE_COLS is None:
@@ -441,13 +494,11 @@ def predict_match(odds1: float, odds2: float):
     if odds1 <= 0 or odds2 <= 0:
         raise HTTPException(status_code=400, detail="odds1 and odds2 must be positive decimal odds values")
 
-    # Odds-only prediction mode:
-    # b365w=odds1, b365l=odds2, rank_diff=0, all one-hot surface/level columns=0.
     feature_map = {col: 0.0 for col in PRED_FEATURE_COLS}
-    if "b365w" in feature_map:
-        feature_map["b365w"] = float(odds1)
-    if "b365l" in feature_map:
-        feature_map["b365l"] = float(odds2)
+    if "p1_imp" in feature_map:
+        feature_map["p1_imp"] = 1.0 / float(odds1)
+    if "p2_imp" in feature_map:
+        feature_map["p2_imp"] = 1.0 / float(odds2)
     if "rank_diff" in feature_map:
         feature_map["rank_diff"] = 0.0
 
@@ -457,6 +508,7 @@ def predict_match(odds1: float, odds2: float):
     )
     features = (features - PRED_FM) / PRED_FS
 
+    PRED_MODEL.eval()
     with torch.no_grad():
         raw_logit = PRED_MODEL(features)
         player1_win_prob = torch.sigmoid(raw_logit).item()
@@ -468,6 +520,175 @@ def predict_match(odds1: float, odds2: float):
         player1_win_prob=player1_win_prob,
         player2_win_prob=player2_win_prob,
         predicted_winner=predicted_winner,
+    )
+
+
+@app.get("/random_match", response_model=RandomMatchResponse)
+def get_random_match():
+    """Fetches a random match from the DB with fully populated features."""
+    with Session(engine) as session:
+        # SQLite ORDER BY RANDOM() limit 1
+        result = session.exec(
+            select(Match).where(
+                Match.w_ace.isnot(None), Match.l_ace.isnot(None),
+                Match.b365w.isnot(None), Match.b365l.isnot(None),
+                Match.rank_diff.isnot(None), Match.w_1stin.isnot(None),
+                Match.l_1stin.isnot(None)
+            ).order_by(func.random()).limit(1)
+        ).first()
+
+        if not result:
+            raise HTTPException(status_code=404, detail="No sufficient stat matches found in DB")
+
+        t = session.exec(select(Tournament).where(Tournament.tourney_id == result.tourney_id)).first()
+
+        match = result
+
+        # Compute derivations
+        w_1st_serve_return_won = (match.l_1stin or 0) - (match.l_1stwon or 0)
+        l_1st_serve_return_won = (match.w_1stin or 0) - (match.w_1stwon or 0)
+        
+        w_2nd_serve_return_won = ((match.l_svpt or 0) - (match.l_df or 0) - (match.l_1stin or 0)) - (match.l_2ndwon or 0)
+        l_2nd_serve_return_won = ((match.w_svpt or 0) - (match.w_df or 0) - (match.w_1stin or 0)) - (match.w_2ndwon or 0)
+
+        # Flip coin to scramble winner
+        p1_is_winner = random.choice([True, False])
+
+        if p1_is_winner:
+            p1_name = match.winner_name
+            p2_name = match.loser_name
+            p1_rank = match.winner_rank
+            p2_rank = match.loser_rank
+            target = 1.0
+            
+            p1_imp = 1.0 / float(match.b365w)
+            p2_imp = 1.0 / float(match.b365l)
+            rank_diff = float(match.rank_diff)
+            
+            p1_ace = float(match.w_ace)
+            p2_ace = float(match.l_ace)
+            p1_df = float(match.w_df)
+            p2_df = float(match.l_df)
+            p1_1stin = float(match.w_1stin)
+            p2_1stin = float(match.l_1stin)
+            p1_1stwon = float(match.w_1stwon)
+            p2_1stwon = float(match.l_1stwon)
+            p1_bpsaved = float(match.w_bpsaved or 0)
+            p2_bpsaved = float(match.l_bpsaved or 0)
+            p1_bpfaced = float(match.w_bpfaced or 0)
+            p2_bpfaced = float(match.l_bpfaced or 0)
+            p1_bp_conv_pct = float(match.w_bp_conv_pct or 0)
+            p2_bp_conv_pct = float(match.l_bp_conv_pct or 0)
+            p1_1ret = float(w_1st_serve_return_won)
+            p2_1ret = float(l_1st_serve_return_won)
+            p1_2ret = float(w_2nd_serve_return_won)
+            p2_2ret = float(l_2nd_serve_return_won)
+        else:
+            p1_name = match.loser_name
+            p2_name = match.winner_name
+            p1_rank = match.loser_rank
+            p2_rank = match.winner_rank
+            target = 0.0
+            
+            p1_imp = 1.0 / float(match.b365l)
+            p2_imp = 1.0 / float(match.b365w)
+            rank_diff = -float(match.rank_diff)
+            
+            p1_ace = float(match.l_ace)
+            p2_ace = float(match.w_ace)
+            p1_df = float(match.l_df)
+            p2_df = float(match.w_df)
+            p1_1stin = float(match.l_1stin)
+            p2_1stin = float(match.w_1stin)
+            p1_1stwon = float(match.l_1stwon)
+            p2_1stwon = float(match.w_1stwon)
+            p1_bpsaved = float(match.l_bpsaved or 0)
+            p2_bpsaved = float(match.w_bpsaved or 0)
+            p1_bpfaced = float(match.l_bpfaced or 0)
+            p2_bpfaced = float(match.w_bpfaced or 0)
+            p1_bp_conv_pct = float(match.l_bp_conv_pct or 0)
+            p2_bp_conv_pct = float(match.w_bp_conv_pct or 0)
+            p1_1ret = float(l_1st_serve_return_won)
+            p2_1ret = float(w_1st_serve_return_won)
+            p1_2ret = float(l_2nd_serve_return_won)
+            p2_2ret = float(w_2nd_serve_return_won)
+
+        req = OnlineTrainRequest(
+            p1_imp=p1_imp, p2_imp=p2_imp, rank_diff=rank_diff,
+            surface=t.surface or "Hard", tourney_level=t.tourney_level or "A",
+            p1_ace=p1_ace, p2_ace=p2_ace, p1_df=p1_df, p2_df=p2_df,
+            p1_1stin=p1_1stin, p2_1stin=p2_1stin, p1_1stwon=p1_1stwon, p2_1stwon=p2_1stwon,
+            p1_bpsaved=p1_bpsaved, p2_bpsaved=p2_bpsaved,
+            p1_bpfaced=p1_bpfaced, p2_bpfaced=p2_bpfaced,
+            p1_bp_conv_pct=p1_bp_conv_pct, p2_bp_conv_pct=p2_bp_conv_pct,
+            p1_1st_serve_return_won=p1_1ret, p2_1st_serve_return_won=p2_1ret,
+            p1_2nd_serve_return_won=p1_2ret, p2_2nd_serve_return_won=p2_2ret,
+            target=target
+        )
+
+        return RandomMatchResponse(
+            match_id=match.match_id,
+            tourney_name=t.tourney_name or "Unknown",
+            player1_name=p1_name or "Unknown",
+            player2_name=p2_name or "Unknown",
+            player1_rank=p1_rank,
+            player2_rank=p2_rank,
+            features=req
+        )
+
+
+@app.post("/train_online", response_model=OnlineTrainResponse)
+def train_online(req: OnlineTrainRequest):
+    if PRED_MODEL is None or PRED_CRITERION is None or PRED_OPTIMIZER is None:
+        raise HTTPException(status_code=503, detail="Prediction model is not loaded.")
+
+    feature_map = {col: 0.0 for col in PRED_FEATURE_COLS}
+    
+    # Map request values generically
+    for k, v in req.dict().items():
+        if k in feature_map:
+            feature_map[k] = float(v)
+            
+    # Surface and Level one-hots
+    sf_key = f"surface_{req.surface}"
+    lvl_key = f"tourney_level_{req.tourney_level}"
+    if sf_key in feature_map: feature_map[sf_key] = 1.0
+    if lvl_key in feature_map: feature_map[lvl_key] = 1.0
+
+    # Build input tensor using EXACT column order from saved model
+    features = torch.tensor([[feature_map[col] for col in PRED_FEATURE_COLS]], dtype=torch.float32)
+    features = (features - PRED_FM) / PRED_FS
+
+    target = torch.tensor([[req.target]], dtype=torch.float32)
+
+    # 1. Forward Pass (in train mode to allow grads and dropout)
+    PRED_MODEL.train()
+    PRED_OPTIMIZER.zero_grad()
+    raw_logit = PRED_MODEL(features)
+    loss = PRED_CRITERION(raw_logit, target)
+    
+    # 2. Backward Pass & Step
+    loss.backward()
+    PRED_OPTIMIZER.step()
+
+    # 3. Calculate Prediction (we'll just use the raw_logit we already got, though we could re-evaluate)
+    with torch.no_grad():
+        PRED_MODEL.eval()
+        post_logit = PRED_MODEL(features)
+        probs = torch.sigmoid(post_logit).item()
+        
+    p1_prob = probs
+    p2_prob = 1.0 - probs
+    predicted_winner = "Player 1" if p1_prob >= 0.5 else "Player 2"
+    actual_winner = "Player 1" if req.target == 1.0 else "Player 2"
+    is_correct = (predicted_winner == actual_winner)
+
+    return OnlineTrainResponse(
+        p1_prob=p1_prob,
+        p2_prob=p2_prob,
+        predicted_winner=predicted_winner,
+        loss=loss.item(),
+        is_correct=is_correct
     )
 
 
