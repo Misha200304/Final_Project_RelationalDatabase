@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tennis Analytics - Predict Victory</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,600;0,9..40,700;1,9..40,300&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #eef7f0;
+      --panel: #ffffff;
+      --panel2: #f4faf5;
+      --header-bg: #1e5c30;
+      --header2: #174d28;
+      --accent: #2dab55;
+      --accent2: #22c45e;
+      --accent-lt: #d4f5df;
+      --text: #0f2e19;
+      --text2: #2d5a3d;
+      --muted: #6a967a;
+      --border: #cde8d5;
+      --win: #176b33;
+      --loss: #b63232;
+    }
+
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 70% 50% at 5% 0%, rgba(45,171,85,0.13) 0%, transparent 55%),
+        radial-gradient(ellipse 50% 70% at 95% 100%, rgba(45,171,85,0.08) 0%, transparent 55%),
+        repeating-linear-gradient(0deg, transparent, transparent 59px, rgba(45,171,85,0.06) 60px),
+        repeating-linear-gradient(90deg, transparent, transparent 59px, rgba(45,171,85,0.06) 60px);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, transparent, var(--accent2), var(--accent), transparent);
+      z-index: 100;
+    }
+
+    .page {
+      position: relative;
+      z-index: 1;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px 80px;
+    }
+
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 40px;
+      padding: 28px 0 24px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    nav::after {
+      content: '';
+      flex: 1;
+    }
+
+    .nav-logo {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 22px;
+      letter-spacing: 3px;
+      color: var(--accent);
+    }
+
+    .nav-logo span { color: var(--text); }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .nav-links a {
+      color: var(--text2);
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 13px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      transition: color 0.3s ease;
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid transparent;
+    }
+
+    .nav-links a:hover {
+      color: var(--accent);
+      border-color: var(--accent-lt);
+      background: rgba(45, 171, 85, 0.05);
+    }
+
+    .nav-links a.active {
+      color: var(--accent);
+      background: var(--accent-lt);
+      border-color: rgba(45, 171, 85, 0.3);
+    }
+
+    .nav-tag {
+      background: var(--accent-lt);
+      border: 1px solid rgba(45,171,85,0.3);
+      color: var(--accent);
+      padding: 5px 14px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .hero {
+      padding: 56px 0 30px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 18px;
+    }
+
+    .hero-eyebrow::before {
+      content: '';
+      display: block;
+      width: 28px;
+      height: 2px;
+      background: var(--accent);
+      border-radius: 2px;
+    }
+
+    .hero h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(50px, 7vw, 86px);
+      line-height: 0.92;
+      letter-spacing: 2px;
+      margin-bottom: 14px;
+    }
+
+    .hero h1 em {
+      font-style: normal;
+      color: var(--accent);
+    }
+
+    .hero p {
+      max-width: 760px;
+      color: var(--text2);
+      line-height: 1.65;
+      font-size: 16px;
+    }
+
+    .predict-shell {
+      margin-top: 28px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: 0 12px 26px rgba(15,46,25,0.07);
+      padding: 20px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(220px, 1fr));
+      gap: 14px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .field label {
+      font-size: 12px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .field input {
+      border: 1px solid var(--border);
+      background: var(--panel2);
+      color: var(--text);
+      font: inherit;
+      border-radius: 10px;
+      padding: 10px 12px;
+      outline: none;
+    }
+
+    .field input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(45,171,85,0.14);
+    }
+
+    .helper-text {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .actions {
+      margin-top: 4px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 13px;
+      letter-spacing: 0.3px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent2), var(--accent));
+      color: #fff;
+    }
+
+    .btn-secondary {
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      color: var(--text2);
+    }
+
+    .result {
+      display: grid;
+      gap: 12px;
+    }
+
+    .prob-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .prob-card {
+      border-radius: 12px;
+      padding: 14px;
+      border: 1px solid var(--border);
+      background: var(--panel2);
+    }
+
+    .prob-name {
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .prob-value {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 42px;
+      line-height: 1;
+      letter-spacing: 1px;
+    }
+
+    .prob-win .prob-value { color: var(--win); }
+    .prob-loss .prob-value { color: var(--loss); }
+
+    .winner-box {
+      border: 1px solid rgba(23,107,51,0.25);
+      background: rgba(23,107,51,0.09);
+      border-radius: 12px;
+      padding: 14px;
+      color: var(--win);
+      font-weight: 700;
+    }
+
+    .state {
+      border-radius: 12px;
+      padding: 14px;
+      font-size: 14px;
+      border: 1px solid var(--border);
+      background: var(--panel2);
+      color: var(--text2);
+    }
+
+    .state.error {
+      background: #fff1f1;
+      border-color: #f2c6c6;
+      color: #b63232;
+    }
+
+    @media (max-width: 860px) {
+      .form-grid { grid-template-columns: 1fr; }
+      .prob-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 640px) {
+      nav { gap: 16px; }
+      .nav-tag { display: none; }
+      .hero h1 { font-size: 56px; }
+      .nav-links { gap: 10px; }
+      .nav-links a { padding: 6px 8px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <nav>
+      <div class="nav-logo">TENNIS<span>ANALYTICS</span></div>
+      <div class="nav-links">
+        <a href="index.html">Players</a>
+        <a href="tournaments.html">Tournaments</a>
+        <a href="predict.html" class="active">Predict Victory</a>
+      </div>
+      <div class="nav-tag">ML Predictor</div>
+    </nav>
+
+    <section class="hero">
+      <div class="hero-eyebrow">Match Predictor</div>
+      <h1>Predict <em>Victory</em></h1>
+      <p>Enter decimal betting odds and estimate win probabilities instantly using the trained model.</p>
+    </section>
+
+    <section class="predict-shell">
+      <div class="card">
+        <div class="form-grid">
+          <div class="field">
+            <label for="odds1">PLAYER 1 ODDS</label>
+            <input id="odds1" type="number" step="0.01" min="1.01" placeholder="e.g. 1.85" />
+          </div>
+          <div class="field">
+            <label for="odds2">PLAYER 2 ODDS</label>
+            <input id="odds2" type="number" step="0.01" min="1.01" placeholder="e.g. 2.10" />
+          </div>
+        </div>
+
+        <p class="helper-text">Enter decimal odds from any betting site (e.g. Bet365, DraftKings). Odds of 2.00 = 50% implied chance.</p>
+
+        <div class="actions">
+          <button class="btn btn-primary" id="predictBtn" type="button">Run Prediction</button>
+        </div>
+      </div>
+
+      <div class="card result" id="resultCard">
+        <div class="state">Prediction result will appear here.</div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const odds1Input = document.getElementById('odds1');
+    const odds2Input = document.getElementById('odds2');
+    const resultCard = document.getElementById('resultCard');
+
+    function setError(message) {
+      resultCard.innerHTML = `<div class="state error">${message}</div>`;
+    }
+
+    function setLoading() {
+      resultCard.innerHTML = '<div class="state">Running prediction...</div>';
+    }
+
+    function renderResult(data) {
+      const p1Pct = (Number(data.player1_win_prob) * 100).toFixed(2);
+      const p2Pct = (Number(data.player2_win_prob) * 100).toFixed(2);
+      const p1Win = Number(data.player1_win_prob) >= Number(data.player2_win_prob);
+
+      resultCard.innerHTML = `
+        <div class="prob-grid">
+          <div class="prob-card ${p1Win ? 'prob-win' : 'prob-loss'}">
+            <div class="prob-name">Player 1 win probability</div>
+            <div class="prob-value">${p1Pct}%</div>
+          </div>
+          <div class="prob-card ${!p1Win ? 'prob-win' : 'prob-loss'}">
+            <div class="prob-name">Player 2 win probability</div>
+            <div class="prob-value">${p2Pct}%</div>
+          </div>
+        </div>
+        <div class="winner-box">Predicted winner: ${data.predicted_winner}</div>
+      `;
+    }
+
+    async function runPrediction() {
+      const odds1 = Number(odds1Input.value);
+      const odds2 = Number(odds2Input.value);
+
+      if (!Number.isFinite(odds1) || !Number.isFinite(odds2)) {
+        setError('Please enter valid decimal odds for both players.');
+        return;
+      }
+      if (odds1 <= 0 || odds2 <= 0) {
+        setError('Odds must be positive decimal numbers.');
+        return;
+      }
+
+      setLoading();
+
+      const url = `/predict?odds1=${encodeURIComponent(odds1)}&odds2=${encodeURIComponent(odds2)}`;
+
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        if (!res.ok) {
+          const detail = data && data.detail ? data.detail : 'Prediction failed.';
+          setError(detail);
+          return;
+        }
+        renderResult(data);
+      } catch {
+        setError('Could not connect to backend. Make sure FastAPI server is running.');
+      }
+    }
+
+    document.getElementById('predictBtn').addEventListener('click', runPrediction);
+
+    odds1Input.value = '1.85';
+    odds2Input.value = '2.10';
+  </script>
+</body>
+</html>

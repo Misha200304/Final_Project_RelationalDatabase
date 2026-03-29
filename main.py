@@ -6,9 +6,37 @@ from typing import List, Optional
 from pydantic import BaseModel
 from sqlalchemy import cast, Integer, func
 from fastapi import HTTPException
+import torch
+import torch.nn as nn
 
 
 app = FastAPI()
+
+
+class TennisNet(nn.Module):
+    def __init__(self, input_dim: int):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(input_dim, 64),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(64, 32),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(32, 16),
+            nn.ReLU(),
+            nn.Linear(16, 1),
+        )
+
+    def forward(self, x):
+        return self.net(x)
+
+
+PRED_MODEL = None
+PRED_FM = None
+PRED_FS = None
+PRED_FEATURE_COLS = None
+PRED_INPUT_DIM = None
 
 
 # ============================================================================
@@ -83,9 +111,10 @@ class TournamentDetail(BaseModel):
     finalist2_stats: Optional[FinalistStats]
 
 
-# ============================================================================
-# Endpoints
-# ============================================================================
+class PredictionResponse(BaseModel):
+    player1_win_prob: float
+    player2_win_prob: float
+    predicted_winner: str
 
 # ============================================================================
 # Endpoints
@@ -101,6 +130,30 @@ def get_round_order(round_str: Optional[str]) -> int:
     """Return numeric order for sorting rounds from earliest to latest."""
     round_order = {"R128": 0, "R64": 1, "R32": 2, "R16": 3, "QF": 4, "SF": 5, "F": 6}
     return round_order.get(round_str, -1)
+
+
+def load_prediction_model() -> None:
+    """Load model.pth once and cache tensors/model globally."""
+    global PRED_MODEL, PRED_FM, PRED_FS, PRED_FEATURE_COLS, PRED_INPUT_DIM
+
+    model_data = torch.load("model.pth", map_location="cpu")
+    PRED_FM = model_data["fm"]
+    PRED_FS = model_data["fs"]
+    PRED_FEATURE_COLS = model_data["feature_cols"]
+    PRED_INPUT_DIM = model_data["input_dim"]
+
+    PRED_MODEL = TennisNet(PRED_INPUT_DIM)
+    PRED_MODEL.load_state_dict(model_data["parameters"])
+    PRED_MODEL.eval()
+
+
+@app.on_event("startup")
+def startup_load_prediction_model():
+    try:
+        load_prediction_model()
+    except Exception as e:
+        # App remains usable for non-ML endpoints even if model file is absent.
+        print(f"Warning: could not load model.pth at startup: {e}")
 
 
 @app.get("/years")
@@ -378,6 +431,44 @@ def get_tournament(name: str, year: int):
             finalist2_name=finalist2_name,
             finalist2_stats=finalist2_stats,
         )
+
+
+@app.get("/predict", response_model=PredictionResponse)
+def predict_match(odds1: float, odds2: float):
+    if PRED_MODEL is None or PRED_FM is None or PRED_FS is None or PRED_FEATURE_COLS is None:
+        raise HTTPException(status_code=503, detail="Prediction model is not loaded. Run train.py first.")
+
+    if odds1 <= 0 or odds2 <= 0:
+        raise HTTPException(status_code=400, detail="odds1 and odds2 must be positive decimal odds values")
+
+    # Odds-only prediction mode:
+    # b365w=odds1, b365l=odds2, rank_diff=0, all one-hot surface/level columns=0.
+    feature_map = {col: 0.0 for col in PRED_FEATURE_COLS}
+    if "b365w" in feature_map:
+        feature_map["b365w"] = float(odds1)
+    if "b365l" in feature_map:
+        feature_map["b365l"] = float(odds2)
+    if "rank_diff" in feature_map:
+        feature_map["rank_diff"] = 0.0
+
+    features = torch.tensor(
+        [[feature_map[col] for col in PRED_FEATURE_COLS]],
+        dtype=torch.float32,
+    )
+    features = (features - PRED_FM) / PRED_FS
+
+    with torch.no_grad():
+        raw_logit = PRED_MODEL(features)
+        player1_win_prob = torch.sigmoid(raw_logit).item()
+
+    player2_win_prob = 1.0 - player1_win_prob
+    predicted_winner = "Player 1" if player1_win_prob >= 0.5 else "Player 2"
+
+    return PredictionResponse(
+        player1_win_prob=player1_win_prob,
+        player2_win_prob=player2_win_prob,
+        predicted_winner=predicted_winner,
+    )
 
 
 # Mount static files
